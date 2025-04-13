@@ -1,0 +1,22 @@
+[package]
+name = "igl-nano"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+description = "Minimal WASM core for maximum performance"
+
+[lib]
+crate-type = ["cdylib"]
+
+[features]
+esp32 = []
+
+[dependencies]
+
+[package.metadata.wasm]
+target-features = ["atomics"]
+
+[profile.release]
+opt-level = 'z'
+lto = true
+panic = 'abort'

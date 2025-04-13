@@ -1,0 +1,35 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <title>IGL-Nano Final Solution</title>
+    <script>
+    async function runDemo() {
+        try {
+            // 1. Загрузка WASM
+            const response = await fetch('out.wasm');
+            const bytes = await response.arrayBuffer();
+            const { instance } = await WebAssembly.instantiate(bytes);
+            
+            // 2. Получаем память из WASM
+            const memory = instance.exports.memory;
+            const buffer = new Int32Array(memory.buffer);
+            
+            // 3. Записываем тестовые данные
+            buffer.set([10, 20, 30], 0);
+            
+            // 4. Тестируем функции
+            console.log("2 + 3 =", instance.exports.add(2, 3));
+            console.log("Sum [10,20,30] =", instance.exports.sum_slice(0, 3));
+            
+        } catch (e) {
+            console.error("Error:", e);
+        }
+    }
+    runDemo();
+    </script>
+</head>
+<body>
+    <h1>IGL-Nano Working Solution</h1>
+    <p>Check console (F12)</p>
+</body>
+</html>

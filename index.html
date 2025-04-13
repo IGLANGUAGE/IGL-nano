@@ -1,0 +1,13 @@
+<script>
+    fetch('out.wasm')
+      .then(r => r.arrayBuffer())
+      .then(bytes => WebAssembly.instantiate(bytes))
+      .then(wasm => {
+        console.log("2 + 3 =", wasm.instance.exports.add(2, 3));
+        
+        const memory = wasm.instance.exports.memory;
+        const array = new Int32Array(memory.buffer, 0, 3);
+        array.set([10, 20, 30]);
+        console.log("Sum:", wasm.instance.exports.sum(0, 3)); // 60
+      });
+    </script>
