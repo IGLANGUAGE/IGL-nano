@@ -1,5 +1,5 @@
 param (
-    [ValidateSet("release", "docs", "test")]
+    [ValidateSet("release", "docs")]
     [string]$Target = "release"
 )
 
@@ -14,12 +14,7 @@ function Generate-Docs {
     cargo doc --no-deps --open
 }
 
-function Run-Tests {
-    cargo test --target wasm32-wasi -- --nocapture
-}
-
 switch ($Target) {
     "release" { Build-Wasm }
     "docs" { Generate-Docs }
-    "test" { Run-Tests }
 }
