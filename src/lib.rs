@@ -1,8 +1,15 @@
-mod core;
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-pub use core::*;
+    #[test]
+    fn test_add() {
+        assert_eq!(add(2, 3), 5);
+    }
 
-#[no_mangle]
-pub extern "C" fn init() {
-    // Инициализация всех подсистем
+    #[test]
+    fn test_sum() {
+        let data = [10, 20, 30];
+        assert_eq!(sum_slice(data.as_ptr(), data.len()), 60);
+    }
 }

@@ -1,26 +1,25 @@
 param (
-    [ValidateSet("release", "docs", "dev")]
+    [ValidateSet("release", "docs", "test")]
     [string]$Target = "release"
 )
 
 function Build-Wasm {
-    if ($Target -eq "release") {
-        # Отключаем LTO для WASM
-        $env:RUSTFLAGS = "-C embed-bitcode=no"
-        cargo build --release --target wasm32-unknown-unknown
-    } else {
-        cargo build --target wasm32-unknown-unknown
-    }
+    cargo build --release --target wasm32-unknown-unknown
     if (-not $?) { exit 1 }
-    Write-Host "WASM build completed" -ForegroundColor Green
+    $size = (Get-Item "target/wasm32-unknown-unknown/release/igl_nano.wasm").Length / 1KB
+    Write-Host "WASM size: $($size.ToString('0.00')) KB" -ForegroundColor Green
 }
 
 function Generate-Docs {
     cargo doc --no-deps --open
-    Write-Host "Documentation generated" -ForegroundColor Green
+}
+
+function Run-Tests {
+    cargo test --target wasm32-wasi -- --nocapture
 }
 
 switch ($Target) {
-    { $_ -in "release", "dev" } { Build-Wasm }
+    "release" { Build-Wasm }
     "docs" { Generate-Docs }
+    "test" { Run-Tests }
 }
