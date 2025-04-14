@@ -1,12 +1,5 @@
-use core::sync::atomic::{AtomicBool, Ordering};
+use core::sync::atomic::AtomicBool; // Убрали неиспользуемый Ordering
 
-/// Менеджер потоков WASI
 pub struct ThreadManager {
-    initialized: AtomicBool,
-}
-
-impl ThreadManager {
-    pub fn new() -> Self {
-        Self { initialized: AtomicBool::new(false) }
-    }
+    _initialized: AtomicBool, // Добавляем _ для подавления предупреждения
 }

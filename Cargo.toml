@@ -6,17 +6,11 @@ license = "Apache-2.0"
 description = "Minimal WASM core for maximum performance"
 
 [lib]
-crate-type = ["cdylib"]
-
-[features]
-esp32 = []
-
-[dependencies]
-
-[package.metadata.wasm]
-target-features = ["atomics"]
+crate-type = ["cdylib"]  # Оставляем только cdylib для WASM
 
 [profile.release]
-opt-level = 'z'
-lto = true
-panic = 'abort'
+opt-level = 'z'  # Максимальная оптимизация
+panic = 'abort'   # Минимизация размера
+
+[profile.dev]
+opt-level = 0     # Для отладки
