@@ -15,8 +15,33 @@ jobs:
           target: wasm32-unknown-unknown
           profile: minimal
           override: true
+          components: rust-src
       
       - name: Build
         run: |
+          RUSTFLAGS="-C opt-level=z -C panic=abort" \
           cargo build --release --target wasm32-unknown-unknown
-          wasm-opt -Oz -o igl-nano.wasm target/wasm32-unknown-unknown/release/igl_nano.wasm
+          
+          # Установка wasm-opt (если нужно)
+          sudo apt-get update
+          sudo apt-get install -y binaryen
+          
+          # Оптимизация
+          wasm-opt -Oz -o public/out.wasm \
+            target/wasm32-unknown-unknown/release/igl_nano.wasm
+          
+          # Проверка размера
+          SIZE=$(stat -c%s public/out.wasm)
+          echo "WASM size: $SIZE bytes"
+          if [ $SIZE -gt 10240 ]; then
+            echo "::error::WASM size exceeds 10KB ($SIZE bytes)"
+            exit 1
+          fi
+      
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wasm-build
+          path: |
+            target/wasm32-unknown-unknown/release/igl_nano.wasm
+            public/out.wasm
