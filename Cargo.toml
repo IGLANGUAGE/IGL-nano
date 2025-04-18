@@ -2,15 +2,21 @@
 name = "igl-nano"
 version = "0.1.0"
 edition = "2021"
-license = "Apache-2.0"
-description = "Minimal WASM core for maximum performance"
 
 [lib]
-crate-type = ["cdylib"]  # Оставляем только cdylib для WASM
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = ["wee_alloc"]
+
+[dependencies]
+serde = { version = "1.0", default-features = false, features = ["derive"] }
+serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
+wee_alloc = { version = "0.4.5", optional = true }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wee_alloc = { version = "0.4", optional = true }
 
 [profile.release]
-opt-level = 'z'  # Максимальная оптимизация
-panic = 'abort'   # Минимизация размера
-
-[profile.dev]
-opt-level = 0     # Для отладки
+lto = true
+opt-level = 's'  # Для оптимизации размера

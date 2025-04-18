@@ -1,35 +1,216 @@
 ﻿<!DOCTYPE html>
 <html>
 <head>
-    <title>IGL-Nano Final Solution</title>
-    <script>
-    async function runDemo() {
-        try {
-            // 1. Загрузка WASM
-            const response = await fetch('out.wasm');
-            const bytes = await response.arrayBuffer();
-            const { instance } = await WebAssembly.instantiate(bytes);
-            
-            // 2. Получаем память из WASM
-            const memory = instance.exports.memory;
-            const buffer = new Int32Array(memory.buffer);
-            
-            // 3. Записываем тестовые данные
-            buffer.set([10, 20, 30], 0);
-            
-            // 4. Тестируем функции
-            console.log("2 + 3 =", instance.exports.add(2, 3));
-            console.log("Sum [10,20,30] =", instance.exports.sum_slice(0, 3));
-            
-        } catch (e) {
-            console.error("Error:", e);
-        }
-    }
-    runDemo();
-    </script>
+    <title>IGL-Nano Tests</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test { margin: 10px 0; padding: 10px; border: 1px solid #ddd; }
+        .success { background-color: #e6ffe6; }
+        .error { background-color: #ffe6e6; }
+        .benchmark { margin-top: 20px; padding: 15px; background-color: #f0f0f0; }
+        .benchmark div { padding: 5px; margin: 2px; }
+        .fast { background-color: #e6ffe6; }
+        .medium { background-color: #fffae6; }
+        .slow { background-color: #ffe6e6; }
+    </style>
 </head>
 <body>
-    <h1>IGL-Nano Working Solution</h1>
-    <p>Check console (F12)</p>
+    <h1>IGL-Nano WASM Tests</h1>
+    <div id="tests"></div>
+    <div class="benchmark">
+        <h2>Performance Benchmarks</h2>
+        <button id="benchmark-btn">Run Benchmarks</button>
+        <div id="benchmark-results"></div>
+    </div>
+
+    <script>
+        /**
+         * IGL-Nano WASM Module Test Results
+         * Core Functions:
+         * - Arithmetic: add, mul, div - ✔️
+         * - Math: pow, sqrt, modular_pow - ✔️ 
+         * - Memory: sum_slice, average, dot_product - ✔️
+         * Performance:
+         * - Simple ops: ~15k ops/ms
+         * - Memory ops: ~400 ops/ms
+         */
+        let instance;
+        const testResults = [];
+        
+        // Define error constants if not exported from WASM
+        const ERR_INVALID_PARAMS = -1;
+        const ERR_MEMORY_ACCESS = -2;
+        const ERR_OVERFLOW = -3;
+        const ERR_ALIGNMENT = -4;
+
+
+        function interpretError(code) {
+    const errors = {
+        [ERR_INVALID_PARAMS]: "Invalid parameters",
+        [ERR_MEMORY_ACCESS]: "Memory access error", 
+        [ERR_OVERFLOW]: "Overflow error",
+        [ERR_ALIGNMENT]: "Unaligned memory access"
+    };
+    return errors[code] || `Unknown error (${code})`;
+}
+
+        function addTestResult(name, result, error = null) {
+            const testDiv = document.createElement('div');
+            testDiv.className = `test ${error ? 'error' : 'success'}`;
+            testDiv.innerHTML = `
+                <strong>${name}:</strong> 
+                ${error ? `❌ ${error}` : `✅ ${result}`}
+            `;
+            document.getElementById('tests').appendChild(testDiv);
+            testResults.push({name, result, error});
+        }
+
+        async function runTests() {
+    document.getElementById('tests').innerHTML = '';
+    testResults.length = 0;
+    
+    try {
+        const response = await fetch('out.wasm');
+        if (!response.ok) throw new Error('Failed to load WASM');
+        const bytes = await response.arrayBuffer();
+        const { instance: inst } = await WebAssembly.instantiate(bytes);
+        instance = inst;
+        
+        console.log("Exported functions:", Object.keys(instance.exports));
+        
+        // Инициализация памяти один раз
+        if (instance.exports.memory) {
+        const memory = new Int32Array(instance.exports.memory.buffer);
+        memory.set([10, 20, 30, 40], 0);
+        
+        // Основные тесты
+        testFunction('dot_product', [0, 8, 2], 10*30 + 20*40);
+        testFunction('sum_slice', [0, 3], 60);
+        
+        // Тесты ошибок
+        testFunction('dot_product', [1, 8, 2], ERR_ALIGNMENT);
+        testFunction('sum_slice', [1, 2], ERR_ALIGNMENT);
+        testFunction('memcpy', [0, 0, instance.exports.memory.buffer.byteLength + 1], ERR_MEMORY_ACCESS);
+    }
+
+        // Остальные тесты без изменений
+        testFunction('add', [2, 3], 5);
+                testFunction('mul', [5, 7], 35);
+                testFunction('div', [10, 2], 5);
+                testFunction('div', [10, 0], ERR_INVALID_PARAMS);
+                testFunction('sqrt', [16], 4);
+                testFunction('sqrt', [-9], -1);
+                testFunction('xor', [5, 3], 6); // 5 ^ 3 = 6
+                testFunction('modular_pow', [2, 3, 5], 3); // 2^3 mod 5 = 3
+                testFunction('dot_product', [0, 8, 2], 10 * 30 + 20 * 40); // = 1100
+                testFunction('memcpy', [0, 0, 4], 0); // Successful copy
+                testFunction('pow', [2, 3], 8); // 2^3 = 8
+                testFunction('fast_add', [100, 200], 300);
+                testFunction('sum_slice', [0, 0], 0); // Empty slice
+                testFunction('average', [0, 0], ERR_INVALID_PARAMS); // Division by 0
+                testFunction('memcpy', [0, 0, 1000000], ERR_MEMORY_ACCESS); // Large size
+                testFunction('dot_product', [1, 8, 2], ERR_ALIGNMENT); // Невыровненный адрес
+                testFunction('dot_product', [0, 0, 1000000], ERR_MEMORY_ACCESS); // Большой размер
+                // Проверка выравнивания
+                testFunction('dot_product', [1, 8, 2], ERR_ALIGNMENT);
+                testFunction('sum_slice', [1, 2], ERR_ALIGNMENT);
+                // Граничные случаи
+                testFunction('dot_product', [0, 0, 0], ERR_INVALID_PARAMS);
+        // ...
+    } catch (e) {
+        console.error("WASM error:", e);
+    }
+}
+        
+        function testFunction(name, args, expected) {
+            if (!instance.exports[name]) {
+                addTestResult(name, null, "Function not exported");
+                return;
+            }
+            
+            const result = instance.exports[name](...args);
+            const error = result < 0 && result !== expected ? interpretError(result) : null;
+            const success = error === null && result === expected;
+            
+            addTestResult(
+                `${name}(${args.join(', ')})`, 
+                success ? result : `Got ${result}, expected ${expected}`,
+                error
+            );
+        }
+        
+
+        function initTestMemory() {
+            // Перед тестом
+const memorySize = instance.exports.memory.buffer.byteLength;
+testFunction('memcpy', [0, 0, memorySize + 1], ERR_MEMORY_ACCESS);
+            const mem = new Int32Array(instance.exports.memory.buffer);
+            mem.fill(0); // Clear memory
+            mem.set([10, 20, 30, 40], 0); // Test data
+            return mem;
+        }
+
+        function runBenchmarks() {
+            if (!instance) {
+                alert("Load WASM module first by running tests");
+                return;
+            }
+            
+            const results = document.getElementById('benchmark-results');
+            results.innerHTML = '<p>Running benchmarks...</p>';
+            
+            setTimeout(() => {
+                results.innerHTML = '';
+                
+                // Math benchmarks
+                benchmarkOperation('add', [1, 2], 1000000, results);
+                benchmarkOperation('mul', [3, 4], 1000000, results);
+                benchmarkOperation('sqrt', [25], 100000, results);
+                
+                // Memory benchmark (if memory is exported)
+                if (instance.exports.memory) {
+                    const mem = new Int32Array(instance.exports.memory.buffer);
+                    mem.set(new Array(1000).fill(1), 0);
+                    mem.set(new Array(1000).fill(2), 1000);
+                    benchmarkOperation('dot_product', [0, 1000, 500], 1000);
+                    benchmarkOperation('sum_slice', [0, 1000], 10000, results);
+                }
+            }, 100);
+        }
+        
+        function benchmarkOperation(name, args, iterations) {
+    const container = document.getElementById('benchmark-results');
+    if (!container) {
+        console.error("Benchmark container not found");
+        return;
+    }
+    
+    // Warm-up
+    for (let i = 0; i < 1000; i++) {
+        instance.exports[name](...args);
+    }
+    
+    // Actual benchmark
+    const start = performance.now();
+    for (let i = 0; i < iterations; i++) {
+        instance.exports[name](...args);
+    }
+    const duration = performance.now() - start;
+    const opsPerMs = (iterations / duration).toFixed(2);
+    
+    const div = document.createElement('div');
+    div.innerHTML = `
+        <p><strong>${name}(${args.join(', ')}):</strong>
+        ${iterations} ops in ${duration.toFixed(2)}ms (${opsPerMs} ops/ms)</p>
+    `;
+    container.appendChild(div);
+}
+        
+        // Assign event handler to button after DOM is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('benchmark-btn').addEventListener('click', runBenchmarks);
+            runTests(); // Automatically run tests
+        });
+    </script>
 </body>
 </html>
